@@ -40,14 +40,11 @@ jobs:
       - name: Mirror
         run: node .github/scripts/mirror.mjs /tmp/up
 
-      # Validate the plugin manifest, and fail if a marketplace manifest or
-      # README ever reappears (both are intentionally absent from this mirror).
+      # Same validator Claude Code runs when adding a marketplace
       - name: Validate mirror
         run: |
+          npx -y @anthropic-ai/claude-code@2.1.304 plugin validate .
           npx -y @anthropic-ai/claude-code@2.1.304 plugin validate .claude-plugin/plugin.json
-          for f in .claude-plugin/marketplace.json README.md; do
-            if [ -e "$f" ]; then echo "::error::$f must not exist in this mirror"; exit 1; fi
-          done
 
       - name: Commit & push
         run: |

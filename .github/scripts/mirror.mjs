@@ -1,17 +1,20 @@
 #!/usr/bin/env node
-// Mirror Leonxlnx/taste-skill into this repo as a Claude plugin.
+// Mirror Leonxlnx/taste-skill into this repo as a Claude plugin marketplace.
 // Usage: node .github/scripts/mirror.mjs <upstream-checkout-dir>
 //
-// Differences from a raw copy:
+// Differences from a raw copy (to satisfy the claude.ai / Cowork sync validator):
 //   1. Skill folder is renamed to the `name` in its SKILL.md frontmatter.
 //   2. .claude-plugin/plugin.json is generated (upstream ships none).
-//   3. No marketplace.json is written: this mirror is intentionally not a
-//      marketplace, so directory crawlers that index marketplace manifests skip it.
+//   3. .claude-plugin/marketplace.json is regenerated in minimal form, owned by this mirror.
 import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+// --- Mirror identity -------------------------------------------------------
+const MARKETPLACE = 'taste-sync';
+const OWNER = { name: 'ryndearu', url: 'https://github.com/ryndearu' };
 const UPSTREAM_SKILL_DIR = 'skills/taste-skill';
+// ---------------------------------------------------------------------------
 
 const up = process.argv[2];
 if (!up) { console.error('usage: mirror.mjs <upstream-dir>'); process.exit(2); }
@@ -45,6 +48,14 @@ write('.claude-plugin/plugin.json', {
   license: p.license,
   keywords: p.keywords,
   // skills/ is auto-discovered from the plugin root; no explicit path needed.
+});
+
+write('.claude-plugin/marketplace.json', {
+  $schema: 'https://anthropic.com/claude-code/marketplace.schema.json',
+  name: MARKETPLACE,
+  description: `Auto-synced mirror of ${p.repository}`,
+  owner: OWNER,
+  plugins: [{ name: p.name, description: p.description, source: './', category: 'design' }],
 });
 
 const sha = execFileSync('git', ['-C', up, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
