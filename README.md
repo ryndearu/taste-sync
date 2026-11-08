@@ -2,7 +2,7 @@
 
 Auto-synced mirror of [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT) as a Claude plugin marketplace.
 
-`.github/workflows/sync-upstream.yml` runs daily: validates upstream, then regenerates
+`.github/workflows/sync-upstream.yml` runs every 3 days at 00:00 UTC: validates upstream, then regenerates
 `.claude-plugin/`, `skills/`, `LICENSE` and `UPSTREAM_SHA` via `.github/scripts/mirror.mjs`.
 Don't edit those by hand; the next sync overwrites them.
 
