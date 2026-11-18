@@ -2,7 +2,7 @@ name: sync-upstream
 
 on:
   schedule:
-    - cron: '0 0 */3 * *'   # every 3 days (days 1, 4, 7, …), 00:00 UTC
+    - cron: '17 0 * * 5'   # every Friday, 00:17 UTC (off-minute avoids the busiest slot)
   workflow_dispatch:
 
 permissions:
@@ -20,16 +20,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cheap exit: nothing below runs when upstream HEAD is already mirrored.
+      - name: Check upstream HEAD
+        id: check
+        run: |
+          remote=$(git ls-remote "$UPSTREAM" HEAD | cut -f1)
+          if [ "$remote" = "$(cat UPSTREAM_SHA)" ]; then
+            echo "Upstream unchanged at ${remote:0:7}."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.changed == 'true'
         with:
           node-version: 22
 
       - name: Fetch upstream
+        if: steps.check.outputs.changed == 'true'
         run: git clone --depth 1 "$UPSTREAM" /tmp/up
 
       # Upstream's own checks run first: a broken upstream commit fails the job
       # instead of landing in this repo.
       - name: Validate upstream
+        if: steps.check.outputs.changed == 'true'
         working-directory: /tmp/up
         run: |
           npm install --no-save --no-package-lock yaml@2.6.1
@@ -38,15 +53,20 @@ jobs:
             | xargs -0 -n1 node --check
 
       - name: Mirror
+        if: steps.check.outputs.changed == 'true'
         run: node .github/scripts/mirror.mjs /tmp/up
 
-      # Same validator Claude Code runs when adding a marketplace
+      # Same validator Claude Code runs when adding a marketplace.
+      # Installed once so the two validations don't each resolve the package.
       - name: Validate mirror
+        if: steps.check.outputs.changed == 'true'
         run: |
-          npx -y @anthropic-ai/claude-code@2.1.304 plugin validate .
-          npx -y @anthropic-ai/claude-code@2.1.304 plugin validate .claude-plugin/plugin.json
+          npm install -g @anthropic-ai/claude-code@2.1.304
+          claude plugin validate .
+          claude plugin validate .claude-plugin/plugin.json
 
       - name: Commit & push
+        if: steps.check.outputs.changed == 'true'
         run: |
           git config user.name sync-bot
           git config user.email sync-bot@users.noreply.github.com
